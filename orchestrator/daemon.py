@@ -65,7 +65,12 @@ def run_daemon(cfg: DaemonConfig) -> int:
 
         # run
         logfile = os.path.join(cfg.log_dir, f"{task_id}.attempt{attempt+1}.log")
-        cmd = cfg.runner_cmd.format(task_id=task_id, routing=task.get("routing"), prompt=task.get("prompt"))
+        cmd = cfg.runner_cmd.format(
+            task_id=task_id,
+            routing=task.get("routing"),
+            prompt=task.get("prompt"),
+            db_path=cfg.db_path,
+        )
 
         rc = _run_cmd(cmd, logfile)
 
@@ -141,7 +146,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", required=True, help="sqlite db path")
     ap.add_argument("--poll", type=float, default=1.0)
-    ap.add_argument("--runner", required=True, help="runner command template; supports {task_id} {routing} {prompt}")
+    ap.add_argument("--runner", required=True, help="runner command template; supports {task_id} {routing} {prompt} {db_path}")
     ap.add_argument("--logs", default="./logs")
     args = ap.parse_args(argv)
 

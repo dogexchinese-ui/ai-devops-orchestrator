@@ -17,13 +17,49 @@
 - `docs/`：设计说明
 - `tests/`：最小测试
 
-## 运行（先不动你现有系统）
+## 运行（最小可跑）
 
-本仓库先提供：
-- 计划/子任务 schema 校验
-- SQLite 状态机 + queue + worker
+### 1) 安装测试依赖
 
-等你确认 repo 路径/agent runner 命令后，再接：
-- git worktree 创建
-- tmux 或 subprocess runner
-- GitHub PR/CI monitor
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+```
+
+### 2) 入队一个示例计划
+
+```bash
+python bin/orchestratorctl.py --db state/orch.db enqueue \
+  --plan examples/plan.sample.json --idempotency demo1
+```
+
+### 3) 启动 daemon（接入内置 runner）
+
+```bash
+python -m orchestrator.daemon \
+  --db state/orch.db \
+  --logs state/logs \
+  --poll 1 \
+  --runner "python bin/run_task.py --db {db_path} --task-id {task_id}"
+```
+
+### 4) 查看任务状态
+
+```bash
+python bin/orchestratorctl.py --db state/orch.db list
+```
+
+## 路由策略（当前实现）
+
+- `codex-* / backend / frontend / coding` → `codex exec --full-auto`
+- `review*` → `openclaw agent --agent reviewer`
+- `design*` → `openclaw agent --agent designer`
+- `triage*` → `openclaw agent --agent triage`
+
+> 注意：`codex` 路由需要 `worktree_path` 或 `repo_path`（或环境变量 `ORCH_WORKDIR`）可用。
+
+## 下一步
+
+- git worktree 生命周期（创建/清理）
+- PR/CI monitor 回写 DB（真实 `failure_kind` 分类）
+- retry gate 接入更细粒度信号（flaky/test infra/compile/lint）
