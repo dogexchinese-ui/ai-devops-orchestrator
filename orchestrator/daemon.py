@@ -4,14 +4,15 @@ import argparse
 import os
 import signal
 import subprocess
-import sys
 import time
 from dataclasses import dataclass
 from typing import Optional
 
 from . import db as dbm
+from .failure import classify_failure
 from .queue import next_runnable_task, refresh_blocked_and_plans
 from .retry_policy import decide_retry
+from .worktree import cleanup_task_worktree
 
 
 @dataclass
@@ -72,12 +73,16 @@ def run_daemon(cfg: DaemonConfig) -> int:
             db_path=cfg.db_path,
         )
 
-        rc = _run_cmd(cmd, logfile)
+        result = _run_cmd(cmd, logfile)
+        rc = result.returncode
 
         if rc == 0:
             _mark_succeeded(con, task_id)
+            cleanup_task_worktree(con, task_id=task_id)
         else:
-            _mark_failed(con, task_id, failure_kind="agent", failure_detail=f"runner rc={rc}")
+            cls = classify_failure(result.output, rc=rc)
+            detail = f"{cls.detail}; log={logfile}"
+            _mark_failed(con, task_id, failure_kind=cls.kind, failure_detail=detail)
             # decide retry
             row = con.execute("SELECT attempt, max_attempts, failure_kind, failure_detail FROM tasks WHERE id=?", (task_id,)).fetchone()
             dec = decide_retry(
@@ -104,16 +109,25 @@ def run_daemon(cfg: DaemonConfig) -> int:
                         "INSERT INTO events(task_id, ts, level, message) VALUES(?,?,?,?)",
                         (task_id, now, "warn", f"no retry: {dec.reason}"),
                     )
+                cleanup_task_worktree(con, task_id=task_id)
 
         refresh_blocked_and_plans(con)
 
     return 0
 
 
-def _run_cmd(cmd: str, logfile: str) -> int:
-    with open(logfile, "wb") as f:
-        p = subprocess.Popen(cmd, shell=True, stdout=f, stderr=subprocess.STDOUT)
-        return p.wait()
+@dataclass(frozen=True)
+class CmdResult:
+    returncode: int
+    output: str
+
+
+def _run_cmd(cmd: str, logfile: str) -> CmdResult:
+    p = subprocess.run(cmd, shell=True, text=True, capture_output=True)
+    merged = (p.stdout or "") + ("\n" if p.stdout and p.stderr else "") + (p.stderr or "")
+    with open(logfile, "w", encoding="utf-8") as f:
+        f.write(merged)
+    return CmdResult(returncode=p.returncode, output=merged[-20000:])
 
 
 def _mark_succeeded(con, task_id: str) -> None:

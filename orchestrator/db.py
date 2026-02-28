@@ -6,7 +6,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -49,6 +49,10 @@ def migrate(con: sqlite3.Connection) -> None:
     if current == 1:
         _migrate_1_to_2(con)
         current = 2
+
+    if current == 2:
+        _migrate_2_to_3(con)
+        current = 3
 
     con.execute(
         "INSERT OR REPLACE INTO meta(key,value) VALUES('schema_version', ?)",
@@ -119,6 +123,25 @@ def _migrate_1_to_2(con: sqlite3.Connection) -> None:
 
     # Backfill plan rows so downstream queries can use plan_id consistently.
     con.execute("UPDATE tasks SET plan_id=id WHERE kind='plan' AND (plan_id IS NULL OR plan_id='')")
+
+
+def _migrate_2_to_3(con: sqlite3.Connection) -> None:
+    cols = {r["name"] for r in con.execute("PRAGMA table_info(tasks)").fetchall()}
+
+    if "worktree_managed" not in cols:
+        con.execute("ALTER TABLE tasks ADD COLUMN worktree_managed INTEGER NOT NULL DEFAULT 0")
+    if "worktree_branch" not in cols:
+        con.execute("ALTER TABLE tasks ADD COLUMN worktree_branch TEXT")
+    if "pr_number" not in cols:
+        con.execute("ALTER TABLE tasks ADD COLUMN pr_number INTEGER")
+    if "pr_url" not in cols:
+        con.execute("ALTER TABLE tasks ADD COLUMN pr_url TEXT")
+    if "ci_state" not in cols:
+        con.execute("ALTER TABLE tasks ADD COLUMN ci_state TEXT")
+    if "ci_detail" not in cols:
+        con.execute("ALTER TABLE tasks ADD COLUMN ci_detail TEXT")
+    if "ci_url" not in cols:
+        con.execute("ALTER TABLE tasks ADD COLUMN ci_url TEXT")
 
 
 @contextmanager

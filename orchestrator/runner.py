@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import db as dbm
+from .worktree import ensure_task_worktree
 
 
 def run_task(db_path: str, task_id: str) -> int:
@@ -27,7 +28,15 @@ def run_task(db_path: str, task_id: str) -> int:
     prompt = row["prompt"] or ""
 
     if _is_codex_route(routing):
-        return _run_codex(task_id=task_id, prompt=prompt, worktree_path=row["worktree_path"], repo_path=row["repo_path"])
+        worktree_path = row["worktree_path"]
+        repo_path = row["repo_path"]
+        try:
+            wt = ensure_task_worktree(con, task_id=task_id, repo_path=repo_path, worktree_path=worktree_path)
+            if wt:
+                worktree_path = wt.path
+        except Exception as e:
+            print(f"worktree setup failed: {e}", file=sys.stderr)
+        return _run_codex(task_id=task_id, prompt=prompt, worktree_path=worktree_path, repo_path=repo_path)
 
     if _is_reviewer_route(routing):
         return _run_openclaw_agent(agent="reviewer", prompt=prompt)
