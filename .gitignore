@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytype/
+.mypy_cache/
+.venv/
+
+# Local state
+state/
+*.db
+*.sqlite
+*.log
+
+# OS
+.DS_Store

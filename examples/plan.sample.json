@@ -1,0 +1,19 @@
+{
+  "planId": "demo-plan-001",
+  "title": "Demo: add healthcheck",
+  "subtasks": [
+    {
+      "id": "t1-backend",
+      "title": "Backend: add /health endpoint",
+      "routing": "codex-backend",
+      "prompt": "Add a /health endpoint that returns {status: 'ok'}. Include tests."
+    },
+    {
+      "id": "t2-frontend",
+      "title": "Frontend: show health status",
+      "routing": "claude-frontend",
+      "prompt": "Add a small UI indicator that calls /health and shows green/red.",
+      "dependsOn": ["t1-backend"]
+    }
+  ]
+}
