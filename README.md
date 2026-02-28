@@ -63,18 +63,23 @@ python bin/orchestratorctl.py --db state/orch.db list
 
 ## 路由策略（当前实现）
 
-- `codex-* / backend / frontend / coding` → `codex exec --full-auto`
+- `codex-* / backend / frontend / coding` → `codex exec --dangerously-bypass-approvals-and-sandbox`
 - `review*` → `openclaw agent --agent reviewer`
 - `design*` → `openclaw agent --agent designer`
 - `triage*` → `openclaw agent --agent triage`
 
 > 注意：`codex` 路由需要 `worktree_path` 或 `repo_path`（或环境变量 `ORCH_WORKDIR`）可用。
+>
+> 入队时可在计划里带：
+> - 顶层：`repoPath` / `repo`（默认给全部 subtasks）
+> - 子任务级：`repoPath` / `worktreePath`（覆盖顶层）
 
 ## Worktree 生命周期（当前实现）
 
 - 对 `codex-*` 路由任务：如果任务缺少 `worktree_path` 且有 `repo_path`，会自动创建 `repo_path/.orchestrator/worktrees/<task_id>`。
 - 自动创建的 worktree 会回写到 DB（`tasks.worktree_path`、`tasks.worktree_branch`、`tasks.worktree_managed=1`）。
-- 任务进入终态（`succeeded` 或最终 `failed`）时，会安全清理托管 worktree。
+- **成功任务默认保留 worktree**（方便 review/commit/PR）；
+- 任务最终失败（且不再重试）时，会安全清理托管 worktree。
 
 ## 失败分类（当前实现）
 

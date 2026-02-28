@@ -26,6 +26,11 @@ def test_classify_agent_failure_from_rc():
     assert c.kind == "agent"
 
 
+def test_classify_landlock_as_agent():
+    c = classify_failure("error applying legacy Linux sandbox restrictions: Sandbox(LandlockRestrict)", rc=1)
+    assert c.kind == "agent"
+
+
 def test_classify_unknown():
     c = classify_failure("some random failure text", rc=3)
     assert c.kind == "unknown"

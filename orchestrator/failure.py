@@ -68,6 +68,9 @@ _PATTERNS = (
             r"\bbinary not found\b",
             r"\btimeout\b",
             r"\bpermission denied\b",
+            r"landlockrestrict",
+            r"execution sandbox",
+            r"couldn't write files directly",
         ],
     ),
 )

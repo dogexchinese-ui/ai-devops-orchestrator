@@ -84,12 +84,24 @@ def _run_codex(*, task_id: str, prompt: str, worktree_path: Optional[str], repo_
         print("codex binary not found in PATH", file=sys.stderr)
         return 127
 
-    cmd = ["codex", "exec", "--full-auto", prompt]
+    cmd = ["codex", "exec", "--dangerously-bypass-approvals-and-sandbox", prompt]
     p = subprocess.run(cmd, cwd=str(wd), text=True, capture_output=True)
+    out = (p.stdout or "") + "\n" + (p.stderr or "")
     if p.stdout:
         print(p.stdout)
     if p.stderr:
         print(p.stderr, file=sys.stderr)
+
+    # Codex may exit 0 but still report a sandbox block without applying edits.
+    blocked_signals = [
+        "blocked by the execution sandbox",
+        "Sandbox(LandlockRestrict)",
+        "couldn't write files directly",
+        "panicked at linux-sandbox",
+    ]
+    if p.returncode == 0 and any(sig.lower() in out.lower() for sig in blocked_signals):
+        return 75
+
     return p.returncode
 
 

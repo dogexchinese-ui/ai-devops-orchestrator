@@ -78,7 +78,7 @@ def run_daemon(cfg: DaemonConfig) -> int:
 
         if rc == 0:
             _mark_succeeded(con, task_id)
-            cleanup_task_worktree(con, task_id=task_id)
+            # Keep successful worktrees for review/commit/PR flow.
         else:
             cls = classify_failure(result.output, rc=rc)
             detail = f"{cls.detail}; log={logfile}"

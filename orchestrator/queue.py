@@ -23,6 +23,9 @@ def enqueue_plan(
 
     plan_id = plan.get("planId") or plan.get("id")
     title = plan.get("title")
+    plan_repo = plan.get("repo")
+    plan_repo_path = plan.get("repoPath") or plan.get("repo_path")
+    plan_worktree_path = plan.get("worktreePath") or plan.get("worktree_path")
 
     now = dbm.now_ts()
 
@@ -37,22 +40,25 @@ def enqueue_plan(
 
         con.execute(
             """
-            INSERT INTO tasks(id, kind, plan_id, title, status, max_attempts, idempotency_key, created_at, updated_at)
-            VALUES(?, 'plan', ?, ?, 'queued', ?, ?, ?, ?)
+            INSERT INTO tasks(id, kind, plan_id, title, repo, repo_path, worktree_path, status, max_attempts, idempotency_key, created_at, updated_at)
+            VALUES(?, 'plan', ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?)
             """,
-            (plan_id, plan_id, title, max_attempts, idempotency_key, now, now),
+            (plan_id, plan_id, title, plan_repo, plan_repo_path, plan_worktree_path, max_attempts, idempotency_key, now, now),
         )
 
         for st in plan["subtasks"]:
             sid = st["id"]
             routing = st.get("routing")
             prompt = st.get("prompt")
+            repo = st.get("repo", plan_repo)
+            repo_path = st.get("repoPath") or st.get("repo_path") or plan_repo_path
+            worktree_path = st.get("worktreePath") or st.get("worktree_path") or plan_worktree_path
             con.execute(
                 """
-                INSERT INTO tasks(id, kind, plan_id, title, routing, prompt, status, max_attempts, created_at, updated_at)
-                VALUES(?, 'subtask', ?, ?, ?, ?, 'queued', ?, ?, ?)
+                INSERT INTO tasks(id, kind, plan_id, title, routing, prompt, repo, repo_path, worktree_path, status, max_attempts, created_at, updated_at)
+                VALUES(?, 'subtask', ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?)
                 """,
-                (sid, plan_id, st.get("title"), routing, prompt, max_attempts, now, now),
+                (sid, plan_id, st.get("title"), routing, prompt, repo, repo_path, worktree_path, max_attempts, now, now),
             )
 
             for dep in (st.get("dependsOn") or []):
