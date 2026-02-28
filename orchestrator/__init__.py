@@ -4,4 +4,7 @@ __all__ = [
   "queue",
   "daemon",
   "retry_policy",
+  "failure",
+  "worktree",
+  "monitor",
 ]
