@@ -43,6 +43,18 @@ python -m orchestrator.daemon \
   --runner "python bin/run_task.py --db {db_path} --task-id {task_id}"
 ```
 
+### 3.1) PR/CI 状态回写（可选，依赖 gh）
+
+```bash
+python bin/monitor_pr_ci.py --db state/orch.db
+```
+
+只同步单个任务：
+
+```bash
+python bin/monitor_pr_ci.py --db state/orch.db --task-id subtask-backend-1
+```
+
 ### 4) 查看任务状态
 
 ```bash
@@ -58,8 +70,17 @@ python bin/orchestratorctl.py --db state/orch.db list
 
 > 注意：`codex` 路由需要 `worktree_path` 或 `repo_path`（或环境变量 `ORCH_WORKDIR`）可用。
 
+## Worktree 生命周期（当前实现）
+
+- 对 `codex-*` 路由任务：如果任务缺少 `worktree_path` 且有 `repo_path`，会自动创建 `repo_path/.orchestrator/worktrees/<task_id>`。
+- 自动创建的 worktree 会回写到 DB（`tasks.worktree_path`、`tasks.worktree_branch`、`tasks.worktree_managed=1`）。
+- 任务进入终态（`succeeded` 或最终 `failed`）时，会安全清理托管 worktree。
+
+## 失败分类（当前实现）
+
+- daemon 会读取 runner stdout/stderr 合并日志并分类写回：`lint | test | build | ci | agent | unknown`。
+- 结果写入 `tasks.failure_kind` 与 `tasks.failure_detail`。
+
 ## 下一步
 
-- git worktree 生命周期（创建/清理）
-- PR/CI monitor 回写 DB（真实 `failure_kind` 分类）
 - retry gate 接入更细粒度信号（flaky/test infra/compile/lint）
